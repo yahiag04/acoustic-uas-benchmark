@@ -14,6 +14,7 @@ from counter_uas.config import ExperimentConfig
 from counter_uas.evaluation.metrics import compute_binary_metrics, select_threshold
 from counter_uas.models.baseline_cnn import BaselineCNN
 from counter_uas.training.dataset import AudioWindowDataset
+from counter_uas.training.early_stopping import EarlyStopper
 
 
 def set_seed(seed: int) -> None:
@@ -76,8 +77,10 @@ def train_from_config(
     history: list[dict[str, float]] = []
     best_pr_auc = -1.0
     checkpoint_path = artifacts / "best_model.pt"
+    early_stopper = EarlyStopper(patience=config.training.patience, mode="max")
 
     epochs = max_epochs or config.training.epochs
+    stopped_early = False
     for epoch in range(1, epochs + 1):
         model.train()
         losses: list[float] = []
@@ -114,6 +117,13 @@ def train_from_config(
                 index=False,
             )
 
+        if early_stopper.update(metrics["pr_auc"]):
+            stopped_early = True
+            break
+
     pd.DataFrame(history).to_csv(artifacts / "training_history.csv", index=False)
-    (artifacts / "validation_metrics.json").write_text(json.dumps(history[-1], indent=2))
+    last_metrics = dict(history[-1])
+    last_metrics["stopped_early"] = stopped_early
+    last_metrics["epochs_run"] = len(history)
+    (artifacts / "validation_metrics.json").write_text(json.dumps(last_metrics, indent=2))
     return checkpoint_path
