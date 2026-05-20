@@ -35,6 +35,14 @@ Use `--max-rows` for a smaller development subset.
 - `roc_curve.png`
 - `pr_curve.png`
 - `prediction_samples.csv`
+- `clip_predictions.csv`
+- `error_analysis.csv`
 - `robustness_report.csv`
 - `robustness_summary.md`
 - `reports/final_report.md`
+
+## Current Modeling Notes
+
+The default report now separates clip-level metrics from window-level metrics. Clip-level metrics are the primary result because repeated windows from one audio clip are not independent samples.
+
+Training supports deterministic noise, gain, and time-mask augmentation through `configs/baseline_cnn.yaml`. Evaluation uses a target-recall/min-FPR threshold objective by default so reports can trade a little recall for fewer false alarms. For stronger experiments, change `model.name` from `baseline_cnn` to `enhanced_cnn`; the enhanced model keeps the same log-Mel input pipeline but adds residual convolution blocks and dropout.

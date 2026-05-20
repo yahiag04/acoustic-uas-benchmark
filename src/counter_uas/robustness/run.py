@@ -14,7 +14,12 @@ from counter_uas.robustness.perturbations import add_white_noise_snr, apply_gain
 def _noise_perturbation(snr_db: float, seed: int):
     counter = [0]
 
-    def perturb(waveform: np.ndarray, sample_rate: int) -> np.ndarray:
+    def perturb(
+        waveform: np.ndarray,
+        sample_rate: int,
+        clip_id: str,
+        start_sample: int,
+    ) -> np.ndarray:
         counter[0] += 1
         return add_white_noise_snr(waveform, snr_db=snr_db, seed=seed + counter[0])
 
@@ -22,7 +27,12 @@ def _noise_perturbation(snr_db: float, seed: int):
 
 
 def _gain_perturbation(gain_db: float):
-    def perturb(waveform: np.ndarray, sample_rate: int) -> np.ndarray:
+    def perturb(
+        waveform: np.ndarray,
+        sample_rate: int,
+        clip_id: str,
+        start_sample: int,
+    ) -> np.ndarray:
         return apply_gain_db(waveform, gain_db=gain_db)
 
     return perturb

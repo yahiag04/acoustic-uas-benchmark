@@ -42,4 +42,11 @@ def test_robustness_and_report_write_artifacts(tmp_path):
     assert (robustness_dir / "robustness_report.csv").exists()
     assert (robustness_dir / "robustness_summary.md").exists()
     assert report_path.exists()
-    assert "Acoustic Counter-UAS Detection Benchmark" in report_path.read_text()
+    report_text = report_path.read_text()
+    assert "Acoustic Counter-UAS Detection Benchmark" in report_text
+    assert "## Artifact Metadata" in report_text
+    assert "## Clip-Level Test Metrics" in report_text
+    assert "## Window-Level Test Metrics" in report_text
+    assert "## Robustness Gap" in report_text
+    assert "clip_predictions.csv" in report_text
+    assert "error_analysis.csv" in report_text

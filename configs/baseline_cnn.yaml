@@ -15,6 +15,7 @@ features:
 model:
   name: baseline_cnn
   channels: [16, 32, 64]
+  dropout: 0.2
 training:
   batch_size: 16
   epochs: 30
@@ -22,8 +23,16 @@ training:
   weight_decay: 0.0001
   num_workers: 0
   patience: 2
+  balanced_sampling: true
+  augmentation:
+    enabled: true
+    noise_snr_db: [30, 20, 10]
+    gain_db: [-6, 0, 6]
+    time_mask_fraction: 0.1
 evaluation:
-  target_recall: 0.95
+  target_recall: 0.985
+  clip_aggregation: mean
+  threshold_objective: target_recall_min_fpr
 robustness:
   snr_db: [20, 10, 0]
   gain_db: [-6, 6]

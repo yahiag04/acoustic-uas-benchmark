@@ -15,7 +15,7 @@ from counter_uas.features.mel import LogMelSpectrogram
 
 LABEL_TO_INDEX = {"no_drone": 0, "drone": 1}
 
-Perturbation = Callable[[np.ndarray, int], np.ndarray]
+Perturbation = Callable[[np.ndarray, int, str, int], np.ndarray]
 
 
 def _window_starts(n_samples: int, window_samples: int, hop_samples: int) -> list[int]:
@@ -91,7 +91,13 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
             )
         if self.perturbation is not None:
             selected = np.asarray(
-                self.perturbation(selected, self.sample_rate), dtype=np.float32
+                self.perturbation(
+                    selected,
+                    self.sample_rate,
+                    str(row["clip_id"]),
+                    int(start_sample),
+                ),
+                dtype=np.float32,
             )
         tensor = torch.from_numpy(selected)
         features = self.transform(tensor)

@@ -48,6 +48,36 @@ def test_audio_window_dataset_reads_synthetic_manifest(tmp_path):
     assert isinstance(clip_id, str)
 
 
+def test_audio_window_dataset_passes_stable_window_identity_to_perturbation(tmp_path):
+    manifest_path = create_synthetic_dataset(tmp_path, samples_per_class=4, seed=19)
+    config = load_config(Path("configs/baseline_cnn.yaml"))
+    calls = []
+
+    def perturbation(waveform, sample_rate, clip_id, start_sample):
+        calls.append((sample_rate, clip_id, start_sample))
+        return waveform + np.float32(0.01)
+
+    dataset = AudioWindowDataset(
+        manifest_path=manifest_path,
+        root_dir=tmp_path,
+        split="train",
+        sample_rate=config.data.sample_rate,
+        window_seconds=config.data.window_seconds,
+        hop_seconds=config.data.hop_seconds,
+        feature_config=config.features,
+        perturbation=perturbation,
+    )
+
+    dataset[0]
+    dataset[0]
+
+    assert len(calls) == 2
+    assert calls[0] == calls[1]
+    assert calls[0][0] == config.data.sample_rate
+    assert isinstance(calls[0][1], str)
+    assert isinstance(calls[0][2], int)
+
+
 def test_audio_window_dataset_counts_final_end_aligned_window(tmp_path):
     config = load_config(Path("configs/baseline_cnn.yaml"))
     audio_dir = tmp_path / "audio"
