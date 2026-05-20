@@ -1,6 +1,5 @@
 # Acoustic Counter-UAS Detection Benchmark
-
-Reproducible AI benchmark for acoustic drone detection. The project trains a binary `drone` / `no_drone` classifier, evaluates threshold-aware detection metrics, measures false alarm behavior, checks inference latency, and produces report artifacts suitable for a defense-oriented ML portfolio.
+acoustic drone detection. The project trains a binary `drone` / `no_drone` classifier, evaluates threshold-aware detection metrics, measures false alarm behavior, checks inference latency, and produces reports
 
 ## Setup
 
