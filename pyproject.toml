@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "counter-uas-acoustic-benchmark"
+version = "0.1.0"
+description = "Reproducible acoustic Counter-UAS drone detection benchmark"
+requires-python = ">=3.11"
+dependencies = [
+  "datasets>=2.19",
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "pyyaml>=6.0",
+  "scikit-learn>=1.4",
+  "soundfile>=0.12",
+  "torch>=2.2",
+  "torchaudio>=2.2",
+  "tqdm>=4.66"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+counter-uas = "counter_uas.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
