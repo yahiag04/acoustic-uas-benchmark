@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from counter_uas.config import ExperimentConfig
 from counter_uas.evaluation.metrics import compute_binary_metrics, select_threshold
 from counter_uas.models.baseline_cnn import BaselineCNN
-from counter_uas.training.dataset import AudioWindowDataset
+from counter_uas.training.dataset import AudioWindowDataset, Perturbation
 
 
 def _load_model(checkpoint_path: Path | str, device: torch.device) -> tuple[BaselineCNN, float]:
@@ -78,6 +78,7 @@ def evaluate_checkpoint(
     manifest_path: Path | str,
     root_dir: Path | str,
     output_dir: Path | str,
+    test_perturbation: Perturbation | None = None,
 ) -> dict[str, float]:
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -93,6 +94,7 @@ def evaluate_checkpoint(
         manifest_path, root_dir, "test",
         config.data.sample_rate, config.data.window_seconds, config.data.hop_seconds,
         config.features,
+        perturbation=test_perturbation,
     )
     val_loader = DataLoader(val_ds, batch_size=config.training.batch_size, shuffle=False, num_workers=config.training.num_workers)
     test_loader = DataLoader(test_ds, batch_size=config.training.batch_size, shuffle=False, num_workers=config.training.num_workers)

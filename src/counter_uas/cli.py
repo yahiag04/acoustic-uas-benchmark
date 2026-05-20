@@ -8,6 +8,8 @@ from counter_uas.config import load_config
 from counter_uas.data.dads import export_dads_dataset
 from counter_uas.data.synthetic import create_synthetic_dataset
 from counter_uas.evaluation.evaluate import evaluate_checkpoint
+from counter_uas.reporting.report import write_final_report
+from counter_uas.robustness.run import run_robustness
 from counter_uas.training.train import train_from_config
 
 
@@ -38,6 +40,19 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--manifest", required=True)
     evaluate.add_argument("--root-dir", required=True)
     evaluate.add_argument("--output-dir", default="artifacts/baseline_cnn/eval")
+
+    robustness = subparsers.add_parser("robustness")
+    robustness.add_argument("--config", default="configs/baseline_cnn.yaml")
+    robustness.add_argument("--checkpoint", required=True)
+    robustness.add_argument("--manifest", required=True)
+    robustness.add_argument("--root-dir", required=True)
+    robustness.add_argument("--output-dir", default="artifacts/baseline_cnn/robustness")
+
+    report = subparsers.add_parser("report")
+    report.add_argument("--report-path", default="reports/final_report.md")
+    report.add_argument("--manifest", required=True)
+    report.add_argument("--eval-dir", required=True)
+    report.add_argument("--robustness-dir", required=True)
 
     return parser
 
@@ -79,6 +94,24 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.manifest),
             Path(args.root_dir),
             Path(args.output_dir),
+        )
+        return 0
+    if args.command == "robustness":
+        config = load_config(Path(args.config))
+        run_robustness(
+            config,
+            Path(args.checkpoint),
+            Path(args.manifest),
+            Path(args.root_dir),
+            Path(args.output_dir),
+        )
+        return 0
+    if args.command == "report":
+        write_final_report(
+            Path(args.report_path),
+            Path(args.manifest),
+            Path(args.eval_dir),
+            Path(args.robustness_dir),
         )
         return 0
 

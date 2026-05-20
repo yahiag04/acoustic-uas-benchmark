@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
@@ -12,6 +14,8 @@ from counter_uas.features.mel import LogMelSpectrogram
 
 
 LABEL_TO_INDEX = {"no_drone": 0, "drone": 1}
+
+Perturbation = Callable[[np.ndarray, int], np.ndarray]
 
 
 def _window_starts(n_samples: int, window_samples: int, hop_samples: int) -> list[int]:
@@ -37,6 +41,7 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
         window_seconds: float,
         hop_seconds: float,
         feature_config: FeatureConfig,
+        perturbation: Perturbation | None = None,
     ) -> None:
         self.root_dir = Path(root_dir)
         manifest = pd.read_csv(manifest_path)
@@ -50,6 +55,7 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
             raise ValueError("window_samples must be positive")
         if self.hop_samples <= 0:
             raise ValueError("hop_samples must be positive")
+        self.perturbation = perturbation
         self.transform = LogMelSpectrogram(
             sample_rate=sample_rate,
             n_mels=feature_config.n_mels,
@@ -82,6 +88,10 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
         if actual_sample_rate != self.sample_rate:
             raise ValueError(
                 f"Expected sample rate {self.sample_rate}, got {actual_sample_rate}"
+            )
+        if self.perturbation is not None:
+            selected = np.asarray(
+                self.perturbation(selected, self.sample_rate), dtype=np.float32
             )
         tensor = torch.from_numpy(selected)
         features = self.transform(tensor)
