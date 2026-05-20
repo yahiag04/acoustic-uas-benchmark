@@ -2,16 +2,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
 from counter_uas.config import FeatureConfig
-from counter_uas.data.audio import load_wav_mono, segment_waveform
+from counter_uas.data.audio import load_wav_mono
 from counter_uas.features.mel import LogMelSpectrogram
 
 
 LABEL_TO_INDEX = {"no_drone": 0, "drone": 1}
+
+
+def _window_starts(n_samples: int, window_samples: int, hop_samples: int) -> list[int]:
+    if n_samples <= window_samples:
+        return [0]
+    starts = list(range(0, n_samples - window_samples + 1, hop_samples))
+    if starts[-1] != n_samples - window_samples:
+        starts.append(n_samples - window_samples)
+    return starts
 
 
 class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
@@ -44,32 +54,29 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
         for row_index, row in self.rows.iterrows():
             duration = float(row.get("duration", window_seconds))
             n_samples = max(1, int(duration * sample_rate))
-            if n_samples <= self.window_samples:
-                n_windows = 1
-            else:
-                starts = list(
-                    range(0, n_samples - self.window_samples + 1, self.hop_samples)
-                )
-                if starts[-1] != n_samples - self.window_samples:
-                    starts.append(n_samples - self.window_samples)
-                n_windows = len(starts)
             self.index.extend(
-                (row_index, window_index) for window_index in range(n_windows)
+                (row_index, start_sample)
+                for start_sample in _window_starts(
+                    n_samples, self.window_samples, self.hop_samples
+                )
             )
 
     def __len__(self) -> int:
         return len(self.index)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, int, str]:
-        row_index, window_index = self.index[index]
+        row_index, start_sample = self.index[index]
         row = self.rows.iloc[row_index]
         waveform, actual_sample_rate = load_wav_mono(self.root_dir / str(row["path"]))
         if actual_sample_rate != self.sample_rate:
             raise ValueError(
                 f"Expected sample rate {self.sample_rate}, got {actual_sample_rate}"
             )
-        windows = segment_waveform(waveform, self.window_samples, self.hop_samples)
-        selected = windows[min(window_index, len(windows) - 1)]
+        selected = waveform[start_sample : start_sample + self.window_samples]
+        if len(selected) < self.window_samples:
+            padded = np.zeros(self.window_samples, dtype=np.float32)
+            padded[: len(selected)] = selected
+            selected = padded
         tensor = torch.from_numpy(selected)
         features = self.transform(tensor)
         label = LABEL_TO_INDEX[str(row["label"])]
