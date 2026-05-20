@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+import soundfile as sf
 
-from counter_uas.data.audio import segment_waveform, to_mono
+from counter_uas.data.audio import load_wav_mono, segment_waveform, to_mono
 from counter_uas.data.labels import normalize_label
 from counter_uas.data.splits import assign_splits
 
@@ -51,3 +52,36 @@ def test_assign_splits_is_deterministic_and_stratified():
     assert first["split"].tolist() == second["split"].tolist()
     assert set(first["split"]) == {"train", "val", "test"}
     assert set(first.groupby("split")["label"].nunique()) == {2}
+
+
+def test_assign_splits_supports_small_balanced_manifests():
+    for samples_per_class in (4, 5):
+        manifest = pd.DataFrame(
+            {
+                "clip_id": [f"drone_{i}" for i in range(samples_per_class)]
+                + [f"no_drone_{i}" for i in range(samples_per_class)],
+                "label": ["drone"] * samples_per_class
+                + ["no_drone"] * samples_per_class,
+                "path": [f"audio/{i}.wav" for i in range(samples_per_class * 2)],
+            }
+        )
+
+        assigned = assign_splits(manifest, seed=123)
+
+        assert set(assigned["split"]) == {"train", "val", "test"}
+        assert set(assigned.groupby("split")["label"].nunique()) == {2}
+        assert (
+            assigned["split"].tolist()
+            == assign_splits(manifest, seed=123)["split"].tolist()
+        )
+
+
+def test_load_wav_mono_round_trips_temp_wav(tmp_path):
+    path = tmp_path / "stereo.wav"
+    audio = np.array([[0.25, 0.75], [0.5, -0.5]], dtype=np.float32)
+    sf.write(path, audio, 16_000, subtype="FLOAT")
+
+    waveform, sample_rate = load_wav_mono(path)
+
+    assert sample_rate == 16_000
+    assert np.allclose(waveform, np.array([0.5, 0.0], dtype=np.float32))
