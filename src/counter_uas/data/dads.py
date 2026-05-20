@@ -41,7 +41,7 @@ def export_dads_dataset(
         dataset = dataset.select(range(min(max_rows, len(dataset))))
 
     rows: list[dict[str, object]] = []
-    skipped: list[str] = []
+    skipped_rows: list[dict[str, object]] = []
 
     for index, item in enumerate(tqdm(dataset, desc="Exporting DADS")):
         try:
@@ -64,7 +64,13 @@ def export_dads_dataset(
                 }
             )
         except Exception as exc:
-            skipped.append(f"{index},{type(exc).__name__},{exc}")
+            skipped_rows.append(
+                {
+                    "index": index,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                }
+            )
 
     if not rows:
         raise RuntimeError("No DADS rows were exported")
@@ -72,11 +78,10 @@ def export_dads_dataset(
     manifest = assign_splits(pd.DataFrame(rows), seed=seed)
     manifest_path = root / "manifest.csv"
     manifest.to_csv(manifest_path, index=False)
-    (root / "skipped_files.csv").write_text(
-        "index,error_type,error\n"
-        + "\n".join(skipped)
-        + ("\n" if skipped else "")
-    )
+    pd.DataFrame(
+        skipped_rows,
+        columns=["index", "error_type", "error"],
+    ).to_csv(root / "skipped_files.csv", index=False)
     (root / "split_report.md").write_text(
         "# Split Report\n\n" + _split_counts_markdown(manifest) + "\n"
     )
