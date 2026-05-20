@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 import soundfile as sf
 
 from counter_uas.data.audio import load_wav_mono, segment_waveform, to_mono
@@ -68,12 +69,30 @@ def test_assign_splits_supports_small_balanced_manifests():
 
         assigned = assign_splits(manifest, seed=123)
 
+        assert len(assigned) == len(manifest)
+        assert set(assigned["clip_id"]) == set(manifest["clip_id"])
         assert set(assigned["split"]) == {"train", "val", "test"}
         assert set(assigned.groupby("split")["label"].nunique()) == {2}
         assert (
             assigned["split"].tolist()
             == assign_splits(manifest, seed=123)["split"].tolist()
         )
+
+
+def test_assign_splits_rejects_null_required_fields():
+    manifest = pd.DataFrame(
+        {
+            "clip_id": ["c0", None, "c2"],
+            "label": ["drone", None, "no_drone"],
+            "path": ["audio/0.wav", "audio/1.wav", None],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Manifest required columns contain nulls: \\['clip_id', 'label', 'path'\\]",
+    ):
+        assign_splits(manifest, seed=123)
 
 
 def test_load_wav_mono_round_trips_temp_wav(tmp_path):

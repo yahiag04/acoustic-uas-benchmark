@@ -69,6 +69,13 @@ def assign_splits(
     missing = required - set(manifest.columns)
     if missing:
         raise ValueError(f"Manifest missing required columns: {sorted(missing)}")
+    null_columns = sorted(
+        column for column in required if manifest[column].isna().any()
+    )
+    if null_columns:
+        raise ValueError(
+            f"Manifest required columns contain nulls: {null_columns}"
+        )
 
     df = manifest.copy().reset_index(drop=True)
     rng = np.random.default_rng(seed)
