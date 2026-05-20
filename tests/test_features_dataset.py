@@ -2,9 +2,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 import soundfile as sf
 import torch
 
+import counter_uas.training.dataset as dataset_module
 from counter_uas.config import load_config
 from counter_uas.data.audio import segment_waveform
 from counter_uas.data.synthetic import create_synthetic_dataset
@@ -136,3 +138,89 @@ def test_audio_window_dataset_slices_indexed_start_without_clamping(tmp_path):
     expected[: len(tail)] = tail
 
     torch.testing.assert_close(features, torch.from_numpy(expected))
+
+
+def test_audio_window_dataset_uses_partial_loader_for_indexed_window(
+    tmp_path, monkeypatch
+):
+    config = load_config(Path("configs/baseline_cnn.yaml"))
+    audio_dir = tmp_path / "audio"
+    audio_dir.mkdir()
+    audio_path = audio_dir / "partial.wav"
+    sf.write(
+        audio_path,
+        np.zeros(int(config.data.sample_rate * config.data.window_seconds)),
+        config.data.sample_rate,
+    )
+    manifest_path = tmp_path / "manifest.csv"
+    pd.DataFrame(
+        [
+            {
+                "clip_id": "partial",
+                "path": "audio/partial.wav",
+                "label": "drone",
+                "duration": config.data.window_seconds + (2 * config.data.hop_seconds),
+                "sample_rate": config.data.sample_rate,
+                "source_id": "partial",
+                "split": "train",
+            }
+        ]
+    ).to_csv(manifest_path, index=False)
+    calls = []
+
+    def fake_load_wav_mono_window(path, start_sample, window_samples):
+        calls.append((path, start_sample, window_samples))
+        return (
+            np.full(window_samples, start_sample, dtype=np.float32),
+            config.data.sample_rate,
+        )
+
+    monkeypatch.setattr(
+        dataset_module, "load_wav_mono_window", fake_load_wav_mono_window
+    )
+    dataset = AudioWindowDataset(
+        manifest_path=manifest_path,
+        root_dir=tmp_path,
+        split="train",
+        sample_rate=config.data.sample_rate,
+        window_seconds=config.data.window_seconds,
+        hop_seconds=config.data.hop_seconds,
+        feature_config=config.features,
+    )
+    dataset.transform = torch.nn.Identity()
+
+    features, _, _ = dataset[-1]
+
+    expected_start = int(config.data.sample_rate * 2 * config.data.hop_seconds)
+    assert calls == [
+        (tmp_path / "audio/partial.wav", expected_start, dataset.window_samples)
+    ]
+    torch.testing.assert_close(
+        features,
+        torch.full((dataset.window_samples,), expected_start, dtype=torch.float32),
+    )
+
+
+@pytest.mark.parametrize(
+    ("window_seconds", "hop_seconds", "message"),
+    [
+        (0.0, 1.0, "window_samples must be positive"),
+        (2.0, 0.0, "hop_samples must be positive"),
+    ],
+)
+def test_audio_window_dataset_rejects_non_positive_window_config(
+    tmp_path, window_seconds, hop_seconds, message
+):
+    manifest_path = create_synthetic_dataset(tmp_path, samples_per_class=4, seed=9)
+    config = load_config(Path("configs/baseline_cnn.yaml"))
+
+    with pytest.raises(ValueError, match=message):
+        AudioWindowDataset(
+            manifest_path=manifest_path,
+            root_dir=tmp_path,
+            split="train",
+            sample_rate=config.data.sample_rate,
+            window_seconds=window_seconds,
+            hop_seconds=hop_seconds,
+            feature_config=config.features,
+        )

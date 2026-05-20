@@ -3,7 +3,12 @@ import pandas as pd
 import pytest
 import soundfile as sf
 
-from counter_uas.data.audio import load_wav_mono, segment_waveform, to_mono
+from counter_uas.data.audio import (
+    load_wav_mono,
+    load_wav_mono_window,
+    segment_waveform,
+    to_mono,
+)
 from counter_uas.data.labels import normalize_label
 from counter_uas.data.splits import assign_splits
 
@@ -104,3 +109,18 @@ def test_load_wav_mono_round_trips_temp_wav(tmp_path):
 
     assert sample_rate == 16_000
     assert np.allclose(waveform, np.array([0.5, 0.0], dtype=np.float32))
+
+
+def test_load_wav_mono_window_reads_slice_and_pads(tmp_path):
+    path = tmp_path / "stereo.wav"
+    audio = np.array(
+        [[0.0, 2.0], [2.0, 4.0], [4.0, 6.0]], dtype=np.float32
+    )
+    sf.write(path, audio, 16_000, subtype="FLOAT")
+
+    waveform, sample_rate = load_wav_mono_window(
+        path, start_sample=1, window_samples=4
+    )
+
+    assert sample_rate == 16_000
+    assert np.allclose(waveform, np.array([3.0, 5.0, 0.0, 0.0], dtype=np.float32))

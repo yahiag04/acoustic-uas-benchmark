@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
 from counter_uas.config import FeatureConfig
-from counter_uas.data.audio import load_wav_mono
+from counter_uas.data.audio import load_wav_mono_window
 from counter_uas.features.mel import LogMelSpectrogram
 
 
@@ -16,6 +15,10 @@ LABEL_TO_INDEX = {"no_drone": 0, "drone": 1}
 
 
 def _window_starts(n_samples: int, window_samples: int, hop_samples: int) -> list[int]:
+    if window_samples <= 0:
+        raise ValueError("window_samples must be positive")
+    if hop_samples <= 0:
+        raise ValueError("hop_samples must be positive")
     if n_samples <= window_samples:
         return [0]
     starts = list(range(0, n_samples - window_samples + 1, hop_samples))
@@ -43,6 +46,10 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
         self.sample_rate = sample_rate
         self.window_samples = int(sample_rate * window_seconds)
         self.hop_samples = int(sample_rate * hop_seconds)
+        if self.window_samples <= 0:
+            raise ValueError("window_samples must be positive")
+        if self.hop_samples <= 0:
+            raise ValueError("hop_samples must be positive")
         self.transform = LogMelSpectrogram(
             sample_rate=sample_rate,
             n_mels=feature_config.n_mels,
@@ -67,16 +74,15 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, int, str]:
         row_index, start_sample = self.index[index]
         row = self.rows.iloc[row_index]
-        waveform, actual_sample_rate = load_wav_mono(self.root_dir / str(row["path"]))
+        selected, actual_sample_rate = load_wav_mono_window(
+            self.root_dir / str(row["path"]),
+            start_sample=start_sample,
+            window_samples=self.window_samples,
+        )
         if actual_sample_rate != self.sample_rate:
             raise ValueError(
                 f"Expected sample rate {self.sample_rate}, got {actual_sample_rate}"
             )
-        selected = waveform[start_sample : start_sample + self.window_samples]
-        if len(selected) < self.window_samples:
-            padded = np.zeros(self.window_samples, dtype=np.float32)
-            padded[: len(selected)] = selected
-            selected = padded
         tensor = torch.from_numpy(selected)
         features = self.transform(tensor)
         label = LABEL_TO_INDEX[str(row["label"])]
