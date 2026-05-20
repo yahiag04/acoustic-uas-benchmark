@@ -7,6 +7,7 @@ from counter_uas import __version__
 from counter_uas.config import load_config
 from counter_uas.data.dads import export_dads_dataset
 from counter_uas.data.synthetic import create_synthetic_dataset
+from counter_uas.evaluation.evaluate import evaluate_checkpoint
 from counter_uas.training.train import train_from_config
 
 
@@ -30,6 +31,13 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--manifest", required=True)
     train.add_argument("--root-dir", required=True)
     train.add_argument("--artifact-dir", default="artifacts/baseline_cnn")
+
+    evaluate = subparsers.add_parser("evaluate")
+    evaluate.add_argument("--config", default="configs/baseline_cnn.yaml")
+    evaluate.add_argument("--checkpoint", required=True)
+    evaluate.add_argument("--manifest", required=True)
+    evaluate.add_argument("--root-dir", required=True)
+    evaluate.add_argument("--output-dir", default="artifacts/baseline_cnn/eval")
 
     return parser
 
@@ -61,6 +69,16 @@ def main(argv: list[str] | None = None) -> int:
             manifest_path=Path(args.manifest),
             root_dir=Path(args.root_dir),
             artifact_dir=Path(args.artifact_dir),
+        )
+        return 0
+    if args.command == "evaluate":
+        config = load_config(Path(args.config))
+        evaluate_checkpoint(
+            config,
+            Path(args.checkpoint),
+            Path(args.manifest),
+            Path(args.root_dir),
+            Path(args.output_dir),
         )
         return 0
 
