@@ -17,6 +17,7 @@ dependencies = [
   "soundfile>=0.12",
   "torch>=2.2",
   "torchaudio>=2.2",
+  "torchcodec>=0.1",
   "tqdm>=4.66"
 ]
 
