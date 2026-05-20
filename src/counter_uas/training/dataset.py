@@ -47,9 +47,12 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
             if n_samples <= self.window_samples:
                 n_windows = 1
             else:
-                n_windows = 1 + max(
-                    0, (n_samples - self.window_samples) // self.hop_samples
+                starts = list(
+                    range(0, n_samples - self.window_samples + 1, self.hop_samples)
                 )
+                if starts[-1] != n_samples - self.window_samples:
+                    starts.append(n_samples - self.window_samples)
+                n_windows = len(starts)
             self.index.extend(
                 (row_index, window_index) for window_index in range(n_windows)
             )
