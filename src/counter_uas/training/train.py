@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from counter_uas.config import AugmentationConfig, ExperimentConfig
 from counter_uas.evaluation.metrics import compute_binary_metrics, select_threshold
-from counter_uas.models.factory import create_model
+from counter_uas.models.factory import create_model, needs_raw_waveform
 from counter_uas.training.dataset import AudioWindowDataset, LABEL_TO_INDEX, Perturbation
 from counter_uas.training.early_stopping import EarlyStopper
 
@@ -113,6 +113,7 @@ def train_from_config(
     artifacts.mkdir(parents=True, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    raw = needs_raw_waveform(config.model)
     train_ds = AudioWindowDataset(
         manifest_path=manifest_path,
         root_dir=root_dir,
@@ -125,6 +126,7 @@ def train_from_config(
             config.training.augmentation,
             seed=config.seed,
         ),
+        return_raw_waveform=raw,
     )
     val_ds = AudioWindowDataset(
         manifest_path=manifest_path,
@@ -134,6 +136,7 @@ def train_from_config(
         window_seconds=config.data.window_seconds,
         hop_seconds=config.data.hop_seconds,
         feature_config=config.features,
+        return_raw_waveform=raw,
     )
     sampler = (
         _build_balanced_sampler(train_ds)

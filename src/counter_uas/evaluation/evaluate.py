@@ -30,7 +30,7 @@ from counter_uas.evaluation.metrics import (
     compute_binary_metrics,
     select_threshold,
 )
-from counter_uas.models.factory import create_model
+from counter_uas.models.factory import create_model, needs_raw_waveform
 from counter_uas.training.dataset import AudioWindowDataset, Perturbation
 
 
@@ -106,16 +106,19 @@ def evaluate_checkpoint(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, saved_threshold = _load_model(checkpoint_path, device)
 
+    raw = needs_raw_waveform(config.model)
     val_ds = AudioWindowDataset(
         manifest_path, root_dir, "val",
         config.data.sample_rate, config.data.window_seconds, config.data.hop_seconds,
         config.features,
+        return_raw_waveform=raw,
     )
     test_ds = AudioWindowDataset(
         manifest_path, root_dir, "test",
         config.data.sample_rate, config.data.window_seconds, config.data.hop_seconds,
         config.features,
         perturbation=test_perturbation,
+        return_raw_waveform=raw,
     )
     val_loader = DataLoader(val_ds, batch_size=config.training.batch_size, shuffle=False, num_workers=config.training.num_workers)
     test_loader = DataLoader(test_ds, batch_size=config.training.batch_size, shuffle=False, num_workers=config.training.num_workers)

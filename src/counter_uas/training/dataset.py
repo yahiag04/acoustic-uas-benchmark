@@ -42,6 +42,7 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
         hop_seconds: float,
         feature_config: FeatureConfig,
         perturbation: Perturbation | None = None,
+        return_raw_waveform: bool = False,
     ) -> None:
         self.root_dir = Path(root_dir)
         manifest = pd.read_csv(manifest_path)
@@ -56,12 +57,17 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
         if self.hop_samples <= 0:
             raise ValueError("hop_samples must be positive")
         self.perturbation = perturbation
-        self.transform = LogMelSpectrogram(
-            sample_rate=sample_rate,
-            n_mels=feature_config.n_mels,
-            n_fft=feature_config.n_fft,
-            win_length=feature_config.win_length,
-            hop_length=feature_config.hop_length,
+        self.return_raw_waveform = return_raw_waveform
+        self.transform = (
+            None
+            if return_raw_waveform
+            else LogMelSpectrogram(
+                sample_rate=sample_rate,
+                n_mels=feature_config.n_mels,
+                n_fft=feature_config.n_fft,
+                win_length=feature_config.win_length,
+                hop_length=feature_config.hop_length,
+            )
         )
         self.index: list[tuple[int, int]] = []
         for row_index, row in self.rows.iterrows():
@@ -100,6 +106,6 @@ class AudioWindowDataset(Dataset[tuple[torch.Tensor, int, str]]):
                 dtype=np.float32,
             )
         tensor = torch.from_numpy(selected)
-        features = self.transform(tensor)
+        features = tensor if self.transform is None else self.transform(tensor)
         label = LABEL_TO_INDEX[str(row["label"])]
         return features, label, str(row["clip_id"])

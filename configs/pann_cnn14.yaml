@@ -1,0 +1,38 @@
+seed: 42
+data:
+  dataset_name: halitergezer/drone-audio-detection-samples
+  sample_rate: 16000
+  window_seconds: 2.0
+  hop_seconds: 1.0
+  manifest_path: data/processed/manifest_subset.csv
+  split_dir: data/splits
+  artifact_dir: artifacts/pann_cnn14
+features:
+  n_mels: 64
+  n_fft: 1024
+  win_length: 400
+  hop_length: 160
+model:
+  name: pann_cnn14
+  channels: [1]
+  dropout: 0.3
+training:
+  batch_size: 16
+  epochs: 8
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  num_workers: 0
+  patience: 2
+  balanced_sampling: true
+  augmentation:
+    enabled: true
+    noise_snr_db: [30, 20, 10]
+    gain_db: [-6, 0, 6]
+    time_mask_fraction: 0.1
+evaluation:
+  target_recall: 0.985
+  clip_aggregation: mean
+  threshold_objective: target_recall_min_fpr
+robustness:
+  snr_db: [20, 10, 0]
+  gain_db: [-6, 6]
